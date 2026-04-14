@@ -159,6 +159,105 @@ $ sudo make install
 grSim will be — by default — installed on the `/usr/local` directory.
 
 
+## RL / Python Environment (grsim-rl)
+
+grsim-rl adds a headless RL training platform on top of grSim. You can use it **without building the full grSim GUI**.
+
+### Prerequisites
+
+- Python 3.8+
+- [uv](https://docs.astral.sh/uv/) (recommended package manager)
+
+### Install Python dependencies with uv
+
+```bash
+# Install uv (if not already installed)
+# See: https://docs.astral.sh/uv/getting-started/installation/
+
+# Core dependencies
+uv pip install --system gymnasium numpy pytest
+
+# Install pygrsim package
+uv pip install --system --no-deps -e python/
+
+# Optional: multi-agent, rendering, training
+uv pip install --system pettingzoo matplotlib stable-baselines3
+```
+
+### Verify installation
+
+```bash
+python -c "import pygrsim; print(pygrsim.__version__); print(pygrsim.list_scenarios())"
+```
+
+### Build native C++ physics engine (optional but recommended)
+
+Without the native module, environments run in mock mode (zero observations). With it, you get real ODE physics at ~700-3700 steps/sec.
+
+#### Windows
+
+```bash
+# 1. Install build tools
+#    - CMake: winget install Kitware.CMake
+#    - Visual Studio Build Tools 2022 (with C++ workload)
+#    - vcpkg: git clone https://github.com/microsoft/vcpkg && ./vcpkg/bootstrap-vcpkg.bat
+
+# 2. Install ODE and pybind11
+./vcpkg/vcpkg install ode:x64-windows
+uv pip install --system pybind11
+
+# 3. Build
+cd core_standalone
+mkdir build && cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake ^
+      -DVCPKG_MANIFEST_MODE=OFF -G "Visual Studio 17 2022" -A x64 ^
+      -Dpybind11_DIR=%PYTHON_DIR%/Lib/site-packages/pybind11/share/cmake/pybind11 ..
+cmake --build . --config Release
+
+# 4. Run smoke test
+Release\test_core.exe
+
+# 5. Copy native module into Python package
+copy Release\pygrsim_native.*.pyd ..\python\pygrsim\
+copy Release\ode_double.dll ..\python\pygrsim\
+```
+
+#### Linux
+
+```bash
+# 1. Install dependencies
+sudo apt install cmake build-essential libode-dev python3-dev
+uv pip install --system pybind11
+
+# 2. Build
+cd core_standalone && mkdir build && cd build
+cmake -DVCPKG_MANIFEST_MODE=OFF ..
+cmake --build . --config Release
+
+# 3. Copy native module
+cp pygrsim_native*.so ../../python/pygrsim/
+```
+
+### Run tests
+
+```bash
+python -m pytest tests/ -v
+```
+
+### Run benchmarks
+
+```bash
+python benchmarks/bench_env_overhead.py
+python benchmarks/bench_reproducibility.py
+```
+
+### Run training examples
+
+```bash
+python examples/basic_training.py
+python examples/multi_agent.py
+```
+
 ## Troubleshooting
 
 If you face any problem regarding of updating the grsim version, you can try removing the `grsim.xml`.

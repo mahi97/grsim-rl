@@ -21,15 +21,29 @@ Built on [grSim](https://github.com/RoboCup-SSL/grSim), the official SSL simulat
 - **Full backward compatibility** with existing grSim workflows and protocols
 - **Upstream change watcher** for tracking SSL rule and protocol updates
 
-## Quick Start (Python)
+## Quick Start (Python with uv)
 
 ```bash
-cd python && pip install -e ".[all]"
+# Install uv if you don't have it
+# https://docs.astral.sh/uv/getting-started/installation/
+
+# Install Python dependencies
+uv pip install --system gymnasium numpy pytest
+
+# Install pygrsim (editable, from project root)
+uv pip install --system --no-deps -e python/
+
+# Or manually: add python/ to your Python path
+# python -c "import site; open(site.getsitepackages()[1]+'/pygrsim.pth','w').write('C:/path/to/grsim-rl/python')"
 ```
 
 ```python
 import pygrsim
 
+# List available scenarios
+print(pygrsim.list_scenarios())
+
+# Create an environment
 env = pygrsim.make("empty_field_shot")
 obs, info = env.reset(seed=42)
 
@@ -38,6 +52,44 @@ for _ in range(1000):
     obs, reward, done, truncated, info = env.step(action)
     if done or truncated:
         obs, info = env.reset()
+
+# Also works with gymnasium.make
+import gymnasium as gym
+env = gym.make("grsim/EmptyFieldShot-v0")
+```
+
+## Building C++ (for native physics)
+
+```bash
+# Prerequisites: CMake, MSVC/GCC, vcpkg with ODE, pybind11
+uv pip install --system pybind11
+
+# Configure and build
+cd core_standalone
+mkdir build && cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake \
+      -DVCPKG_MANIFEST_MODE=OFF -G "Visual Studio 17 2022" -A x64 ..
+cmake --build . --config Release
+
+# Run smoke test
+./Release/test_core.exe
+
+# Copy native module to Python package
+cp Release/pygrsim_native.*.pyd ../python/pygrsim/
+cp Release/ode_double.dll ../python/pygrsim/   # Windows only
+```
+
+## Running Tests
+
+```bash
+python -m pytest tests/ -v
+```
+
+## Running Benchmarks
+
+```bash
+python benchmarks/bench_env_overhead.py
+python benchmarks/bench_reproducibility.py
 ```
 
 ## Documentation
