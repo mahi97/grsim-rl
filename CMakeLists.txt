@@ -4,6 +4,10 @@ cmake_minimum_required(VERSION 3.5)
 ## Project branding, version and package mantainer
 project(grSim)
 set(VERSION "1.0.0a2")
+
+# C++17 required for modern protobuf/abseil
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(VENDOR "Parsian")
 set(MAINTAINER "Mani Monajjemi <mani.monajjemi@gmail.com>")
 
@@ -51,7 +55,13 @@ if(UNIX)
 endif()
 
 # set explicitly the c++ standard to use
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(MSVC)
+  add_compile_options(/std:c++17)
+else()
+  add_compile_options(-std=c++17)
+endif()
 
 # add src dir to included directories
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -109,15 +119,37 @@ find_package(VarTypes)
 if(NOT VARTYPES_FOUND)
   include(ExternalProject)
   
-  set(VARTYPES_CMAKE_ARGS "-DVARTYPES_BUILD_STATIC=ON;-DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>")
+  # Force /MD runtime on MSVC to match vcpkg protobuf
+  if(MSVC)
+    set(VARTYPES_CMAKE_ARGS
+      "-DVARTYPES_BUILD_STATIC=ON"
+      "-DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>"
+      "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+      "-DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}"
+      "-DQt5_DIR=${Qt5_DIR}"
+      "-DCMAKE_C_FLAGS_RELEASE=/MD /O2 /Ob2 /DNDEBUG"
+      "-DCMAKE_CXX_FLAGS_RELEASE=/MD /EHsc /O2 /Ob2 /DNDEBUG"
+      "-DCMAKE_C_FLAGS_DEBUG=/MDd /Zi /Ob0 /Od /RTC1"
+      "-DCMAKE_CXX_FLAGS_DEBUG=/MDd /EHsc /Zi /Ob0 /Od /RTC1"
+    )
+  else()
+    set(VARTYPES_CMAKE_ARGS
+      "-DVARTYPES_BUILD_STATIC=ON"
+      "-DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>"
+      "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+      "-DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}"
+    )
+  endif()
   if(NOT "${CMAKE_TOOLCHAIN_FILE}" STREQUAL "")
-    set(VARTYPES_CMAKE_ARGS "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE};${VARTYPES_CMAKE_ARGS}")
+    list(APPEND VARTYPES_CMAKE_ARGS "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
   endif()
 
   ExternalProject_Add(vartypes_external
     GIT_REPOSITORY    https://github.com/jpfeltracco/vartypes
     GIT_TAG           origin/jpfeltracco/build_static
-    CMAKE_ARGS        "${VARTYPES_CMAKE_ARGS}"
+    CMAKE_ARGS        ${VARTYPES_CMAKE_ARGS}
+                      "-DCMAKE_POLICY_DEFAULT_CMP0091=NEW"
+                      "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL"
     STEP_TARGETS install
   )
   set(VARTYPES_LIB_SUBPATH "${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}vartypes${CMAKE_STATIC_LIBRARY_SUFFIX}")
@@ -243,6 +275,11 @@ set_source_files_properties(${CONFIG_FILES}  PROPERTIES MACOSX_PACKAGE_LOCATION 
 target_sources(${app} PRIVATE ${srcs})
 install(TARGETS ${app} DESTINATION bin)
 target_link_libraries(${app} ${libs})
+
+# Work around CRT mismatch between VarTypes (/MT) and vcpkg protobuf (/MD)
+if(MSVC)
+  set_property(TARGET ${app} APPEND_STRING PROPERTY LINK_FLAGS " /NODEFAULTLIB:LIBCMT")
+endif()
 
 if(APPLE AND CMAKE_MACOSX_BUNDLE)
   # use CMAKE_MACOSX_BUNDLE if you want to build a mac bundle

@@ -1,34 +1,85 @@
-.DS_STORE
-build*/*
-dist/*
-bin*/*
-*.user
-*.swp
-Thumbs.db
-.idea/*
-*.iml
-cmake-build-debug
-cmake-build-release
+# ===== Build directories =====
+build/
+build_*/
+cmake-build-debug/
+cmake-build-release/
+cmake-build-*/
+core_standalone/build/
 
-# Python
+# ===== CMake generated =====
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+install_manifest.txt
+*.vcxproj
+*.vcxproj.filters
+*.sln
+*.dir/
+
+# ===== Compiled binaries =====
+bin/
+dist/
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.a
+*.so
+*.so.*
+*.dylib
+
+# ===== Python native extensions =====
+*.pyd
+*.dll
+
+# ===== vcpkg =====
+vcpkg_installed/
+vcpkg-manifest-install.log
+.artifacts/
+
+# ===== Python =====
 __pycache__/
 *.pyc
 *.pyo
 *.egg-info/
-dist/
-build/
+.eggs/
+*.egg
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.cover
+dist/
 
-# IDE
+# ===== IDE / editors =====
 .vscode/
 .idea/
+*.iml
+*.user
+*.swp
+*.swo
+*~
 
-# Build
-build/
-cmake-build-*/
-
-# OS
+# ===== OS =====
 .DS_Store
+.DS_STORE
 Thumbs.db
-*.pyd
-*.dll
+ehthumbs.db
+Desktop.ini
+
+# ===== Protobuf generated sources (in binary dir) =====
+# (tracked .proto files are source; generated .pb.cc/.pb.h stay in build dir)
+
+# ===== Qt / uic / moc generated =====
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# ===== Logs and temporary =====
+*.log
+*.tmp
+*.bak

@@ -8,6 +8,7 @@ ExternalProject_Add(ode_external
     CMAKE_ARGS
                       -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
                       -DCMAKE_TOOLCHAIN_FILE:PATH=${CMAKE_TOOLCHAIN_FILE}
+                      -DCMAKE_POLICY_VERSION_MINIMUM=3.5
                       -DCMAKE_C_COMPILER:PATH=${CMAKE_C_COMPILER}
                       -DCMAKE_CXX_COMPILER:PATH=${CMAKE_CXX_COMPILER}
                       -DCMAKE_MAKE_PROGRAM:PATH=${CMAKE_MAKE_PROGRAM}
@@ -19,7 +20,12 @@ ExternalProject_Add(ode_external
   STEP_TARGETS install
 )
 
-set(ODE_LIB_SUBPATH "${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ode${CMAKE_STATIC_LIBRARY_SUFFIX}")
+# ODE static lib name varies: "ode.lib", "ode_double.lib", or "ode_doubles.lib"
+if(MSVC)
+  set(ODE_LIB_SUBPATH "lib/ode_doubles.lib")
+else()
+  set(ODE_LIB_SUBPATH "${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ode${CMAKE_STATIC_LIBRARY_SUFFIX}")
+endif()
 
 # the byproducts are available after the install step
 ExternalProject_Add_Step(ode_external out

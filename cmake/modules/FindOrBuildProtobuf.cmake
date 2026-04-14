@@ -1,11 +1,5 @@
-# sanitize environment before find_package, because otherwise it also looks in the directory created for the ExternalProject
-include(EnvHelper)
-sanitize_env()
-find_package(Protobuf 3.3.0)
-restore_env()
-
-# protobuf versions >= 3.21 are incompatible with how the project is setup and cause weird errors
-# so we build protobuf ourselves
-if(NOT Protobuf_FOUND OR Protobuf_VERSION VERSION_GREATER_EQUAL 3.21)
-  include(BuildProtobuf)
-endif()
+# Build protobuf from source to avoid CRT mismatch with VarTypes on Windows.
+# vcpkg protobuf v6+ depends on abseil which requires /MD (dynamic CRT),
+# but VarTypes builds with /MT (static CRT). Building protobuf 3.6.1 from
+# source with the same CRT as VarTypes avoids this.
+include(BuildProtobuf)

@@ -23,10 +23,9 @@ include(ExternalProject)
 set(PROTOBUF_CMAKE_ARGS )
 
 ExternalProject_Add(protobuf_external
-                    # URL is the same as in the ER-Force framework,
-                    # because ER-Force needs it and has an incentive to keep the link stable
-  URL               http://www.robotics-erlangen.de/downloads/libraries/protobuf-cpp-3.6.1.tar.gz
-  URL_HASH          SHA256=b3732e471a9bb7950f090fd0457ebd2536a9ba0891b7f3785919c654fe2a2529
+                    # Use protobuf 3.19.6 — last version without abseil dependency,
+                    # compatible with MSVC 2022 C++17
+  URL               https://github.com/protocolbuffers/protobuf/releases/download/v3.19.6/protobuf-cpp-3.19.6.tar.gz
   SOURCE_SUBDIR     cmake
   CMAKE_ARGS
                     -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
@@ -34,13 +33,14 @@ ExternalProject_Add(protobuf_external
                     -DCMAKE_C_COMPILER:PATH=${CMAKE_C_COMPILER}
                     -DCMAKE_CXX_COMPILER:PATH=${CMAKE_CXX_COMPILER}
                     -DCMAKE_MAKE_PROGRAM:PATH=${CMAKE_MAKE_PROGRAM}
+                    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
                     # the tests fail to build :-(
                     -Dprotobuf_BUILD_TESTS:BOOL=OFF
   STEP_TARGETS install
 )
 
-set(PROTOBUF_SUBPATH "${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}protobuf${CMAKE_STATIC_LIBRARY_SUFFIX}")
-set(LIBPROTOC_SUBPATH "${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}protoc${CMAKE_STATIC_LIBRARY_SUFFIX}")
+set(PROTOBUF_SUBPATH "${CMAKE_INSTALL_LIBDIR}/libprotobuf${CMAKE_STATIC_LIBRARY_SUFFIX}")
+set(LIBPROTOC_SUBPATH "${CMAKE_INSTALL_LIBDIR}/libprotoc${CMAKE_STATIC_LIBRARY_SUFFIX}")
 set(PROTOC_SUBPATH "bin/protoc${CMAKE_EXECUTABLE_SUFFIX}")
 
 # the byproducts are available after the install step
@@ -58,7 +58,7 @@ set_target_properties(protobuf_external PROPERTIES EXCLUDE_FROM_ALL true)
 # override all necessary variables originally set by find_package
 # if FORCE is not set cmake does not allow us to override the variables, for some unknown reason
 set(Protobuf_FOUND true CACHE BOOL "" FORCE)
-set(Protobuf_VERSION "3.6.1" CACHE STRING "" FORCE)
+set(Protobuf_VERSION "3.19.6" CACHE STRING "" FORCE)
 set(Protobuf_INCLUDE_DIR "${install_dir}/include" CACHE PATH "" FORCE)
 set(Protobuf_INCLUDE_DIRS "${Protobuf_INCLUDE_DIR}" CACHE PATH "" FORCE)
 set(Protobuf_LIBRARY "${install_dir}/${PROTOBUF_SUBPATH}" CACHE PATH "" FORCE)
@@ -83,5 +83,34 @@ endif()
 set_target_properties(protobuf::protoc PROPERTIES
     IMPORTED_LOCATION "${Protobuf_PROTOC_EXECUTABLE}"
 )
+
+# Define protobuf_generate_cpp() ourselves since cmake 4.3's FindProtobuf
+# tries to read version from a header that doesn't exist yet.
+if(NOT COMMAND protobuf_generate_cpp)
+  function(PROTOBUF_GENERATE_CPP SRCS HDRS)
+    set(${SRCS})
+    set(${HDRS})
+    foreach(FIL ${ARGN})
+      get_filename_component(ABS_FIL ${FIL} ABSOLUTE)
+      get_filename_component(FIL_WE ${FIL} NAME_WE)
+      get_filename_component(FIL_DIR ${ABS_FIL} DIRECTORY)
+      list(APPEND ${SRCS} "${CMAKE_CURRENT_BINARY_DIR}/${FIL_WE}.pb.cc")
+      list(APPEND ${HDRS} "${CMAKE_CURRENT_BINARY_DIR}/${FIL_WE}.pb.h")
+      add_custom_command(
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${FIL_WE}.pb.cc"
+               "${CMAKE_CURRENT_BINARY_DIR}/${FIL_WE}.pb.h"
+        COMMAND ${Protobuf_PROTOC_EXECUTABLE}
+          --cpp_out ${CMAKE_CURRENT_BINARY_DIR}
+          -I${FIL_DIR} -I${Protobuf_INCLUDE_DIR}
+          ${ABS_FIL}
+        DEPENDS ${ABS_FIL} ${protobuf_generate_DEPENDENCIES}
+        COMMENT "Running protoc on ${FIL}"
+      )
+    endforeach()
+    set_source_files_properties(${${SRCS}} ${${HDRS}} PROPERTIES GENERATED TRUE)
+    set(${SRCS} ${${SRCS}} PARENT_SCOPE)
+    set(${HDRS} ${${HDRS}} PARENT_SCOPE)
+  endfunction()
+endif()
 
 message(STATUS "Building protobuf ${Protobuf_VERSION}")
