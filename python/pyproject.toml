@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pygrsim"
+version = "0.1.0"
+description = "Python RL environments for RoboCup SSL based on grSim"
+readme = "README.md"
+license = {text = "GPL-3.0"}
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.20",
+    "gymnasium>=0.26",
+]
+
+[project.optional-dependencies]
+multi-agent = ["pettingzoo>=1.22"]
+training = [
+    "stable-baselines3>=2.0",
+    "tensorboard",
+]
+all = [
+    "pettingzoo>=1.22",
+    "stable-baselines3>=2.0",
+    "tensorboard",
+]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+
+[project.entry-points."gymnasium.envs"]
+ssl_empty_shot = "pygrsim.envs:SSLSingleAgentEnv"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pygrsim*"]
