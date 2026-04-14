@@ -44,7 +44,9 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
-    continue-on-error: true
+    continue-on-error: true  # Windows support is experimental, see #183
+    permissions:
+      contents: read
     env:
       VCPKG_DEFAULT_TRIPLET: x64-windows
     steps:
