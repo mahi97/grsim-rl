@@ -311,7 +311,11 @@ PYBIND11_MODULE(pygrsim_native, m) {
         .def("description", &GameEvent::description);
 
     py::class_<EventDetectorRegistry>(m, "EventDetectorRegistry")
-        .def_static("createDefault", &EventDetectorRegistry::createDefault)
+        .def_static("createDefault", [](const SimConfig& config) {
+            auto reg = std::make_unique<EventDetectorRegistry>(
+                EventDetectorRegistry::createDefault(config));
+            return reg;
+        })
         .def("detectAll", &EventDetectorRegistry::detectAll)
         .def("resetAll", &EventDetectorRegistry::resetAll);
 

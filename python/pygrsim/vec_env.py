@@ -216,6 +216,8 @@ class SSLSyncVecEnv:
             SSLSingleAgentEnv(scenario_name=scenario_name, action_level=action_level, dt=dt)
             for _ in range(num_envs)
         ]
+        # Trigger native module initialization by resetting first env
+        self.envs[0].reset(seed=0)
         self.observation_space = self.envs[0].observation_space
         self.action_space = self.envs[0].action_space
 

@@ -125,6 +125,12 @@ public:
 // Registry of all detectors
 class EventDetectorRegistry {
 public:
+    EventDetectorRegistry() = default;
+    EventDetectorRegistry(EventDetectorRegistry&&) = default;
+    EventDetectorRegistry& operator=(EventDetectorRegistry&&) = default;
+    EventDetectorRegistry(const EventDetectorRegistry&) = delete;
+    EventDetectorRegistry& operator=(const EventDetectorRegistry&) = delete;
+
     void addDetector(std::unique_ptr<EventDetector> detector);
     std::vector<GameEvent> detectAll(
         const grsim_core::WorldState& current,

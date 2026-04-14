@@ -37,3 +37,14 @@ target_link_libraries(grsim_scenarios PUBLIC grsim_core grsim_ref)
 # --- Smoke test ---
 add_executable(test_core ${ROOT}/tests/test_core_smoke.cpp)
 target_link_libraries(test_core grsim_core grsim_ref grsim_scenarios)
+
+# --- Python bindings ---
+option(BUILD_PYTHON "Build pybind11 Python module" ON)
+if(BUILD_PYTHON)
+    find_package(Python COMPONENTS Interpreter Development REQUIRED)
+    find_package(pybind11 CONFIG REQUIRED)
+
+    pybind11_add_module(pygrsim_native ${ROOT}/src/pygrsim_native/bindings.cpp)
+    target_link_libraries(pygrsim_native PRIVATE grsim_core grsim_ref grsim_scenarios)
+    target_include_directories(pygrsim_native PRIVATE ${ROOT}/include)
+endif()

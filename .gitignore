@@ -30,3 +30,5 @@ cmake-build-*/
 # OS
 .DS_Store
 Thumbs.db
+*.pyd
+*.dll

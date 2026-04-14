@@ -181,7 +181,16 @@ if HAS_GYMNASIUM:
 
             # Try to import native engine
             try:
-                import pygrsim_native
+                import os, sys
+                # Add DLL search path on Windows for ODE
+                _pkg_dir = os.path.dirname(os.path.abspath(__file__))
+                if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
+                    os.add_dll_directory(_pkg_dir)
+                # Try importing from the package directory first
+                try:
+                    from pygrsim import pygrsim_native
+                except ImportError:
+                    import pygrsim_native
                 self._native = pygrsim_native
             except ImportError:
                 self._native = None
@@ -202,8 +211,29 @@ if HAS_GYMNASIUM:
             self._elapsed = 0.0
 
             if self._native:
-                s = self._native.reset(self.scenario_name, seed or 0)
-                obs = np.array(s, dtype=np.float32)
+                _n = self._native
+                if not hasattr(self, '_engine') or self._engine is None:
+                    cfg = _n.SimConfig.defaults()
+                    # Use max of blue/yellow count so all robots exist in the engine.
+                    # The observation extraction must match this count.
+                    n_per_team = max(
+                        self.scenario["blue_robots"],
+                        self.scenario["yellow_robots"],
+                        1  # At least 1 to avoid empty teams
+                    )
+                    cfg.sim.robots_per_team = n_per_team
+                    # Recalculate obs space to match actual engine output
+                    obs_dim = 6 + n_per_team * 2 * 7
+                    self.observation_space = spaces.Box(
+                        low=-20.0, high=20.0, shape=(obs_dim,), dtype=np.float32
+                    )
+                    self._engine = _n.SimulationEngine(cfg)
+                    self._event_registry = _n.EventDetectorRegistry.createDefault(cfg)
+                    self._reward_compiler = _n.RewardCompiler.scoringProfile()
+                self._engine.reset(seed or 0)
+                self._event_registry.resetAll()
+                self._prev_state = self._engine.getState()
+                obs = np.array(self._engine.observe(), dtype=np.float32)
             else:
                 obs = np.zeros(self.observation_space.shape, dtype=np.float32)
 
@@ -213,13 +243,33 @@ if HAS_GYMNASIUM:
         def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict]:
             self._elapsed += self.dt
 
-            if self._native:
-                result = self._native.step(action.tolist(), self.dt)
-                obs = np.array(result["observation"], dtype=np.float32)
-                reward = result["reward"]
-                done = result["done"]
-                truncated = result["truncated"]
-                info = result.get("info", {})
+            if self._native and hasattr(self, '_engine') and self._engine is not None:
+                _n = self._native
+                n_blue = self.scenario["blue_robots"]
+                actions = _n.actions_from_numpy(
+                    action.astype(np.float64), 0, n_blue
+                )
+                result = self._engine.step(actions, self.dt)
+                curr_state = result.state
+
+                # Event detection
+                events = self._event_registry.detectAll(
+                    curr_state, self._prev_state, self.dt
+                )
+                # Reward
+                reward_sig = self._reward_compiler.compute(
+                    curr_state, self._prev_state, events, 0
+                )
+                obs = np.array(self._engine.observe(), dtype=np.float32)
+                reward = reward_sig.reward
+                done = reward_sig.done
+                truncated = self._elapsed >= self.scenario["max_time"]
+                info = {
+                    "events": [e.description() for e in events],
+                    "reward_components": dict(reward_sig.components),
+                    "ball_in_play": result.ball_in_play,
+                }
+                self._prev_state = curr_state
             else:
                 # Mock: return zeros
                 obs = np.zeros(self.observation_space.shape, dtype=np.float32)
