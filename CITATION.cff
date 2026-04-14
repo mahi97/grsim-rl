@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+title: "grsim-rl: A Gymnasium-Compatible RL Platform for the RoboCup Small Size League"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - name: "grsim-rl contributors"
+repository-code: "https://github.com/YOUR_ORG/grsim-rl"
+license: GPL-3.0
+version: "0.1.0"
+date-released: "2026-04-14"
+keywords:
+  - "reinforcement learning"
+  - "RoboCup"
+  - "Small Size League"
+  - "multi-agent"
+  - "robotics"
+  - "simulation"
+  - "gymnasium"

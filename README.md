@@ -1,16 +1,56 @@
 [![Build Status](https://github.com/RoboCup-SSL/grSim/workflows/Build/badge.svg)](https://github.com/RoboCup-SSL/grSim/actions?query=workflow%3ABuild+branch%3Amaster) [![CodeFactor](https://www.codefactor.io/repository/github/robocup-ssl/grsim/badge/master)](https://www.codefactor.io/repository/github/robocup-ssl/grsim/overview/master)
 
-grSim
+grsim-rl
 =======================
 
-[RoboCup Small Size League](https://ssl.robocup.org/) Simulator.
+A dual-use platform for the [RoboCup Small Size League](https://ssl.robocup.org/):
+**real-time simulator** + **RL/ML training environment**.
+
+Built on [grSim](https://github.com/RoboCup-SSL/grSim), the official SSL simulator.
 
 ![grSim on Ubuntu](docs/img/screenshot01.jpg?raw=true "grSim on Ubuntu")
 
+## Key Features
+
+- **Gymnasium & PettingZoo** environments for single- and multi-agent RL
+- **Headless simulation engine** (no Qt/GUI required for training)
+- **10 built-in scenarios**: empty-field shot, 1v1 dribble, 2v1 attack, goalkeeper save, ball placement, kickoff, free kick, 3v3 possession, 3v2 counterattack, 6v6 mini-game
+- **Hierarchical action spaces**: wheel velocity, body velocity, skill commands, coach commands
+- **Canonical event detection** aligned with official SSL rules
+- **Reward compiler** with predefined profiles (scoring, possession, defense, placement)
+- **Full backward compatibility** with existing grSim workflows and protocols
+- **Upstream change watcher** for tracking SSL rule and protocol updates
+
+## Quick Start (Python)
+
+```bash
+cd python && pip install -e ".[all]"
+```
+
+```python
+import pygrsim
+
+env = pygrsim.make("empty_field_shot")
+obs, info = env.reset(seed=42)
+
+for _ in range(1000):
+    action = env.action_space.sample()
+    obs, reward, done, truncated, info = env.step(action)
+    if done or truncated:
+        obs, info = env.reset()
+```
+
+## Documentation
+
 - [Install instructions](INSTALL.md)
+- [Repository audit](docs/audit/repo_audit.md)
+- [Architecture and refactor plan](docs/audit/refactor_plan.md)
+- [SSL stack research](docs/research/official_stack.md)
+- [Paper outline](docs/design/paper_outline.md)
 - [Authors](AUTHORS.md)
 - [Changelog](CHANGELOG.md)
 - License: [GNU General Public License (GPLv3)](LICENSE.md)
+- [Citation](CITATION.cff)
 
 System Requirements
 -----------------------
