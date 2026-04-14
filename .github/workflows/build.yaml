@@ -2,7 +2,7 @@ name: Build
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
 jobs:
   build-linux:
@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, ubuntu-22.04, ubuntu-24.04 ]
+        os: [ ubuntu-22.04, ubuntu-24.04 ]
     steps:
       - uses: actions/checkout@v6
       - name: "Update dependencies"
@@ -27,20 +27,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ macos-13, macos-14 ]
+        os: [ macos-14, macos-15 ]
     steps:
       - uses: actions/checkout@v6
       - name: "Install dependencies"
         run: brew tap robotology/formulae && brew install cmake pkg-config qt@5
       - name: "Build"
         run: |
-          # For macOS 13
-          export PATH="/usr/local/opt/qt@5/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/qt@5/lib"
-          export CPPFLAGS="-I/usr/local/opt/qt@5/include"
-          export PKG_CONFIG_PATH="/usr/local/opt/qt@5/lib/pkgconfig"
-          
-          # For macOS 14
+          # For macOS 14+  (Apple Silicon, Homebrew in /opt/homebrew)
           export PATH="/opt/homebrew/opt/qt@5/bin:$PATH"
           export LDFLAGS="-L/opt/homebrew/opt/qt@5/lib"
           export CPPFLAGS="-I/opt/homebrew/opt/qt@5/include"
