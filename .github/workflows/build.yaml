@@ -62,6 +62,4 @@ jobs:
         uses: lukka/run-cmake@v10
         with:
           configurePreset: "ninja-multi-vcpkg"
-          configurePresetAdditionalArgs: "[-DVCPKG_TARGET_TRIPLET=x64-windows]"
           buildPreset: "ninja-multi-vcpkg"
-          buildPresetAdditionalArgs: "['--config Release']"
