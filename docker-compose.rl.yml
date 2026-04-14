@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  # Build and test RL libraries
+  grsim-rl-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.rl
+    command: python3 -m pytest /src/grsim-rl/tests/ -v
+
+  # Run benchmarks
+  grsim-rl-bench:
+    build:
+      context: .
+      dockerfile: Dockerfile.rl
+    command: python3 /src/grsim-rl/benchmarks/bench_env_overhead.py
+
+  # Game controller integration (requires ssl-game-controller running)
+  game-controller:
+    image: robocupssl/ssl-game-controller:latest
+    ports:
+      - "10009:10009"  # CI mode
+      - "10007:10007"  # GC UI
+    command: ["ssl-game-controller", "-ciAddress", ":10009"]

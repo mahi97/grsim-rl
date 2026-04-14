@@ -1,0 +1,69 @@
+name: Build RL Libraries
+
+on:
+  push:
+    branches: [feature/rl-refactor-core, main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-cpp:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake \
+            libode-dev \
+            libprotobuf-dev protobuf-compiler \
+            qtbase5-dev libqt5opengl5-dev libgl1-mesa-dev \
+            python3-dev python3-pip python3-numpy
+
+      - name: Install pybind11
+        run: pip3 install pybind11[global]
+
+      - name: Build RL libraries
+        run: |
+          mkdir build && cd build
+          cmake .. \
+            -DBUILD_RL_LIBS=ON \
+            -DBUILD_PYTHON_BINDINGS=ON \
+            -DBUILD_CLIENTS=OFF \
+            -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc) grsim_core grsim_ref grsim_scenarios
+
+      - name: Build full grSim
+        run: |
+          cd build
+          cmake .. -DBUILD_CLIENTS=ON
+          make -j$(nproc)
+
+  test-python:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps
+        run: |
+          pip install gymnasium numpy pytest pettingzoo
+
+      - name: Run tests
+        run: |
+          cd python && pip install -e .
+          cd .. && python -m pytest tests/ -v
+
+  build-docker:
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -f Dockerfile.rl -t grsim-rl:latest .

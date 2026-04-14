@@ -282,6 +282,12 @@ if(BUILD_RL_LIBS)
     add_subdirectory(src/grsim_scenarios)
 endif()
 
+# Python bindings (requires BUILD_RL_LIBS)
+option(BUILD_PYTHON_BINDINGS "Build pygrsim_native pybind11 module." OFF)
+if(BUILD_PYTHON_BINDINGS AND BUILD_RL_LIBS)
+    add_subdirectory(src/pygrsim_native)
+endif()
+
 file(COPY README.md LICENSE.md DESTINATION ${CMAKE_BINARY_DIR})
 file(RENAME ${CMAKE_BINARY_DIR}/README.md ${CMAKE_BINARY_DIR}/README.txt)
 file(RENAME ${CMAKE_BINARY_DIR}/LICENSE.md ${CMAKE_BINARY_DIR}/LICENSE.txt)
