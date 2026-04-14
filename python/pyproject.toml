@@ -23,14 +23,21 @@ dependencies = [
 
 [project.optional-dependencies]
 multi-agent = ["pettingzoo>=1.22"]
+render = ["matplotlib>=3.5"]
 training = [
     "stable-baselines3>=2.0",
     "tensorboard",
 ]
 all = [
     "pettingzoo>=1.22",
+    "matplotlib>=3.5",
     "stable-baselines3>=2.0",
     "tensorboard",
+]
+docs = [
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.0",
+    "mkdocstrings[python]>=0.20",
 ]
 dev = [
     "pytest",
@@ -38,7 +45,17 @@ dev = [
 ]
 
 [project.entry-points."gymnasium.envs"]
-ssl_empty_shot = "pygrsim.envs:SSLSingleAgentEnv"
+__root__ = "pygrsim:__init__"
+grsim_EmptyFieldShot-v0 = "pygrsim.envs:SSLSingleAgentEnv"
+grsim_OneVsOneDribble-v0 = "pygrsim.envs:SSLSingleAgentEnv"
+grsim_TwoVsOneAttack-v0 = "pygrsim.envs:SSLSingleAgentEnv"
+grsim_GoalkeeperSave-v0 = "pygrsim.envs:SSLSingleAgentEnv"
+grsim_BallPlacement-v0 = "pygrsim.envs:SSLSingleAgentEnv"
+grsim_KickoffAttack-v0 = "pygrsim.envs:SSLSingleAgentEnv"
+grsim_FreeKickAttack-v0 = "pygrsim.envs:SSLSingleAgentEnv"
+grsim_ThreeVsThreePossession-v0 = "pygrsim.envs:SSLSingleAgentEnv"
+grsim_ThreeVsTwoCounterattack-v0 = "pygrsim.envs:SSLSingleAgentEnv"
+grsim_MiniGameFull-v0 = "pygrsim.envs:SSLSingleAgentEnv"
 
 [tool.setuptools.packages.find]
 where = ["."]

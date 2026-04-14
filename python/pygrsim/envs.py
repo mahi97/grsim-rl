@@ -19,6 +19,12 @@ except ImportError:
     HAS_GYMNASIUM = False
 
 try:
+    from pygrsim.renderer import FieldRenderer, obs_to_world_state
+    HAS_RENDERER = True
+except ImportError:
+    HAS_RENDERER = False
+
+try:
     from pettingzoo import ParallelEnv
     HAS_PETTINGZOO = True
 except ImportError:
@@ -171,6 +177,7 @@ if HAS_GYMNASIUM:
             self._engine = None  # Will hold C++ SimulationEngine when available
             self._elapsed = 0.0
             self._prev_obs = None
+            self._renderer = None
 
             # Try to import native engine
             try:
@@ -178,6 +185,12 @@ if HAS_GYMNASIUM:
                 self._native = pygrsim_native
             except ImportError:
                 self._native = None
+
+            # Set up renderer if render_mode is requested and matplotlib is available
+            if self.render_mode is not None and HAS_RENDERER:
+                self._renderer = FieldRenderer(
+                    render_mode=self.render_mode,
+                )
 
         def reset(
             self,
@@ -220,13 +233,28 @@ if HAS_GYMNASIUM:
             return obs, reward, done, truncated, info
 
         def render(self):
-            if self.render_mode == "rgb_array":
-                # Return a placeholder frame
-                return np.zeros((480, 640, 3), dtype=np.uint8)
-            return None
+            if self.render_mode is None:
+                return None
+
+            if self._renderer is None:
+                if self.render_mode == "rgb_array":
+                    # Fallback: return a blank frame when matplotlib is unavailable
+                    return np.zeros((480, 640, 3), dtype=np.uint8)
+                return None
+
+            # Convert the flat observation back to a world_state dict
+            n_blue = self.scenario["blue_robots"]
+            n_yellow = self.scenario["yellow_robots"]
+            obs = self._prev_obs if self._prev_obs is not None else np.zeros(
+                self.observation_space.shape, dtype=np.float32
+            )
+            world_state = obs_to_world_state(obs, n_blue, n_yellow)
+            return self._renderer.render_state(world_state)
 
         def close(self):
-            pass
+            if self._renderer is not None:
+                self._renderer.close()
+                self._renderer = None
 
 else:
     class SSLSingleAgentEnv:
