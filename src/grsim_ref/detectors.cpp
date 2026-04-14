@@ -703,6 +703,389 @@ public:
 };
 
 // ============================================================
+// Aimless Kick Detector
+// Rule: Law 12 — Ball left field without touching opponent
+// ============================================================
+
+class AimlessKickDetector : public EventDetector {
+    grsim_core::SimConfig cfg_;
+
+    // Track the last robot to kick / touch the ball
+    int last_kicker_team_ = -1;
+    int last_kicker_bot_ = -1;
+    double last_kick_x_ = 0.0, last_kick_y_ = 0.0;
+
+    // Whether ball touched any robot on the opposing team since the kick
+    bool opponent_touched_ = false;
+
+    // Previous ball-in-field state for edge detection
+    bool ball_was_in_field_ = true;
+
+public:
+    explicit AimlessKickDetector(const grsim_core::SimConfig& cfg) : cfg_(cfg) {}
+
+    std::vector<GameEvent> detect(
+        const grsim_core::WorldState& current,
+        const grsim_core::WorldState& previous,
+        double /*dt*/
+    ) override {
+        std::vector<GameEvent> events;
+        double half_l = cfg_.field.field_length / 2.0;
+        double half_w = cfg_.field.field_width / 2.0;
+
+        // --- Track who is touching the ball this frame ---
+        int touching_team = -1, touching_bot = -1;
+        auto findTouching = [&](const std::vector<grsim_core::RobotState>& robots, int team) {
+            for (const auto& r : robots) {
+                if (r.touching_ball) { touching_team = team; touching_bot = r.id; }
+            }
+        };
+        findTouching(current.blue_robots, 0);
+        findTouching(current.yellow_robots, 1);
+
+        if (touching_team >= 0) {
+            if (last_kicker_team_ < 0) {
+                // First ever touch — this robot is the kicker
+                last_kicker_team_ = touching_team;
+                last_kicker_bot_ = touching_bot;
+                last_kick_x_ = current.ball.x;
+                last_kick_y_ = current.ball.y;
+                opponent_touched_ = false;
+            } else if (touching_team != last_kicker_team_ ||
+                       touching_bot != last_kicker_bot_) {
+                // A different robot touched the ball
+                if (touching_team != last_kicker_team_) {
+                    // Opponent touched — aimless kick no longer possible
+                    opponent_touched_ = true;
+                }
+                // New kicker
+                last_kicker_team_ = touching_team;
+                last_kicker_bot_ = touching_bot;
+                last_kick_x_ = current.ball.x;
+                last_kick_y_ = current.ball.y;
+                opponent_touched_ = false;
+            }
+        }
+
+        // --- Check if ball left the field ---
+        double bx = current.ball.x, by = current.ball.y;
+        bool in_field = std::abs(bx) <= half_l && std::abs(by) <= half_w;
+
+        if (ball_was_in_field_ && !in_field && last_kicker_team_ >= 0) {
+            // Ball left field via goal line — check if it is a goal first
+            bool is_goal = false;
+            if (std::abs(bx) > half_l) {
+                double goal_hw = cfg_.field.goal_width / 2.0;
+                if (std::abs(by) < goal_hw) {
+                    is_goal = true;
+                }
+            }
+
+            if (!is_goal && !opponent_touched_) {
+                // Aimless kick: ball left without opponent touching it
+                GameEvent e;
+                e.type = GameEventType::AIMLESS_KICK;
+                e.timestamp = current.sim_time;
+                e.by_team = last_kicker_team_;
+                e.by_bot = last_kicker_bot_;
+                e.x = bx;
+                e.y = by;
+                e.rule_ref = "Law 12 — Aimless Kick";
+                events.push_back(e);
+            }
+        }
+
+        ball_was_in_field_ = in_field;
+        return events;
+    }
+
+    void reset() override {
+        last_kicker_team_ = -1;
+        last_kicker_bot_ = -1;
+        opponent_touched_ = false;
+        ball_was_in_field_ = true;
+    }
+    std::string name() const override { return "AimlessKick"; }
+    std::string ruleRef() const override { return "Law 12, Aimless Kick"; }
+};
+
+// ============================================================
+// Keeper Held Ball Detector
+// Rule: Law 12 — Keeper holding ball in defense area too long
+//   Division A: 5 seconds
+//   Division B: 10 seconds
+// ============================================================
+
+class KeeperHeldBallDetector : public EventDetector {
+    grsim_core::SimConfig cfg_;
+
+    // Keeper is assumed to be robot id 0 for each team (standard SSL convention)
+    static constexpr int KEEPER_ID = 0;
+
+    // Per-team tracking
+    struct KeeperState {
+        bool holding = false;
+        double hold_start_time = 0.0;
+        bool event_fired = false;  // avoid re-firing every frame
+    };
+
+    KeeperState keepers_[2];  // 0 = blue, 1 = yellow
+
+    // Division A = 5s, Division B = 10s.  We detect division by field size:
+    // Division A field is 12m long, Division B is 9m.
+    double holdThreshold() const {
+        return (cfg_.field.field_length >= 11.0) ? 5.0 : 10.0;
+    }
+
+    bool keeperHoldingBall(
+        const grsim_core::WorldState& state, int team
+    ) const {
+        const auto& robots = (team == 0) ? state.blue_robots : state.yellow_robots;
+
+        // Find keeper (id == 0)
+        const grsim_core::RobotState* keeper = nullptr;
+        for (const auto& r : robots) {
+            if (r.id == KEEPER_ID && r.present) {
+                keeper = &r;
+                break;
+            }
+        }
+        if (!keeper) return false;
+
+        // Keeper must be touching ball AND inside own defense area
+        if (!keeper->touching_ball) return false;
+        if (!inDefenseArea(cfg_, team, keeper->x, keeper->y)) return false;
+
+        return true;
+    }
+
+public:
+    explicit KeeperHeldBallDetector(const grsim_core::SimConfig& cfg) : cfg_(cfg) {}
+
+    std::vector<GameEvent> detect(
+        const grsim_core::WorldState& current,
+        const grsim_core::WorldState& /*previous*/,
+        double /*dt*/
+    ) override {
+        std::vector<GameEvent> events;
+        double threshold = holdThreshold();
+
+        for (int team = 0; team < 2; team++) {
+            bool holding_now = keeperHoldingBall(current, team);
+
+            if (holding_now) {
+                if (!keepers_[team].holding) {
+                    // Keeper just started holding
+                    keepers_[team].holding = true;
+                    keepers_[team].hold_start_time = current.sim_time;
+                    keepers_[team].event_fired = false;
+                } else if (!keepers_[team].event_fired) {
+                    double elapsed = current.sim_time - keepers_[team].hold_start_time;
+                    if (elapsed >= threshold) {
+                        GameEvent e;
+                        e.type = GameEventType::KEEPER_HELD_BALL;
+                        e.timestamp = current.sim_time;
+                        e.by_team = team;
+                        e.by_bot = KEEPER_ID;
+                        // Location is current ball position
+                        e.x = current.ball.x;
+                        e.y = current.ball.y;
+                        e.distance = elapsed;  // reuse for hold duration
+                        e.rule_ref = "Law 12 — Keeper Held Ball";
+                        events.push_back(e);
+                        keepers_[team].event_fired = true;
+                    }
+                }
+            } else {
+                // Keeper released ball or left defense area
+                keepers_[team].holding = false;
+                keepers_[team].event_fired = false;
+            }
+        }
+
+        return events;
+    }
+
+    void reset() override {
+        keepers_[0] = KeeperState{};
+        keepers_[1] = KeeperState{};
+    }
+    std::string name() const override { return "KeeperHeldBall"; }
+    std::string ruleRef() const override { return "Law 12, Keeper Held Ball"; }
+};
+
+// ============================================================
+// Pushing Detector
+// Rule: Law 12 — Robot pushing another robot
+//
+// Detection heuristic: two robots from opposing teams are in
+// sustained close proximity (< 1.3 * robot diameter) while the
+// "pusher" has a velocity component towards the "victim" that
+// exceeds a threshold.  We require the contact to persist for
+// a minimum duration to filter out ordinary collisions (which
+// the CrashDetector handles).
+// ============================================================
+
+class PushingDetector : public EventDetector {
+    grsim_core::SimConfig cfg_;
+
+    // Minimum sustained contact duration to qualify as pushing (seconds)
+    static constexpr double MIN_PUSH_DURATION = 0.3;
+    // Minimum speed of the pusher towards the victim (m/s)
+    static constexpr double MIN_PUSH_SPEED = 0.3;
+
+    // Track active contacts between opposing robots
+    struct ContactKey {
+        int team_a, id_a;
+        int team_b, id_b;
+        bool operator==(const ContactKey& o) const {
+            return team_a == o.team_a && id_a == o.id_a &&
+                   team_b == o.team_b && id_b == o.id_b;
+        }
+    };
+
+    struct ContactState {
+        ContactKey key;
+        double start_time = 0.0;
+        bool event_fired = false;
+    };
+
+    std::vector<ContactState> contacts_;
+
+    ContactState* findContact(const ContactKey& key) {
+        for (auto& c : contacts_) {
+            if (c.key == key) return &c;
+        }
+        return nullptr;
+    }
+
+public:
+    explicit PushingDetector(const grsim_core::SimConfig& cfg) : cfg_(cfg) {}
+
+    std::vector<GameEvent> detect(
+        const grsim_core::WorldState& current,
+        const grsim_core::WorldState& /*previous*/,
+        double /*dt*/
+    ) override {
+        std::vector<GameEvent> events;
+        double robot_diameter = cfg_.blue_robot.radius * 2.0;
+        double contact_threshold = robot_diameter * 1.3;
+
+        // Collect present robots
+        struct RobotRef { int team; int id; double x, y, vx, vy; };
+        std::vector<RobotRef> robots;
+        auto addTeam = [&](const std::vector<grsim_core::RobotState>& rs, int team) {
+            for (const auto& r : rs) {
+                if (r.present) {
+                    robots.push_back({team, r.id, r.x, r.y, r.vx, r.vy});
+                }
+            }
+        };
+        addTeam(current.blue_robots, 0);
+        addTeam(current.yellow_robots, 1);
+
+        // Mark which contacts are still active
+        std::vector<bool> contact_alive(contacts_.size(), false);
+
+        // Check all cross-team pairs
+        for (size_t i = 0; i < robots.size(); i++) {
+            for (size_t j = i + 1; j < robots.size(); j++) {
+                const auto& a = robots[i];
+                const auto& b = robots[j];
+                if (a.team == b.team) continue;
+
+                double dx = b.x - a.x;
+                double dy = b.y - a.y;
+                double dist = std::sqrt(dx * dx + dy * dy);
+
+                if (dist >= contact_threshold) continue;
+
+                // Normalise contact direction
+                double nx = (dist > 1e-6) ? dx / dist : 0.0;
+                double ny = (dist > 1e-6) ? dy / dist : 0.0;
+
+                // Velocity of A projected onto the contact direction (towards B)
+                double va_towards = a.vx * nx + a.vy * ny;
+                // Velocity of B projected onto the contact direction (towards A, so negate)
+                double vb_towards = -(b.vx * nx + b.vy * ny);
+
+                // Determine if one robot is pushing the other
+                int pusher_team = -1, pusher_id = -1;
+                int victim_team = -1, victim_id = -1;
+                double push_speed = 0.0;
+
+                if (va_towards > MIN_PUSH_SPEED && va_towards > vb_towards) {
+                    pusher_team = a.team; pusher_id = a.id;
+                    victim_team = b.team; victim_id = b.id;
+                    push_speed = va_towards;
+                } else if (vb_towards > MIN_PUSH_SPEED && vb_towards > va_towards) {
+                    pusher_team = b.team; pusher_id = b.id;
+                    victim_team = a.team; victim_id = a.id;
+                    push_speed = vb_towards;
+                } else {
+                    continue;  // no clear pusher
+                }
+
+                // Canonical key: pusher first
+                ContactKey key{pusher_team, pusher_id, victim_team, victim_id};
+
+                ContactState* cs = findContact(key);
+                if (cs) {
+                    // Existing contact — mark alive
+                    for (size_t k = 0; k < contacts_.size(); k++) {
+                        if (contacts_[k].key == key) { contact_alive[k] = true; break; }
+                    }
+
+                    if (!cs->event_fired) {
+                        double elapsed = current.sim_time - cs->start_time;
+                        if (elapsed >= MIN_PUSH_DURATION) {
+                            GameEvent e;
+                            e.type = GameEventType::BOT_PUSHED_BOT;
+                            e.timestamp = current.sim_time;
+                            e.by_team = pusher_team;
+                            e.by_bot = pusher_id;
+                            e.victim_team = victim_team;
+                            e.victim_bot = victim_id;
+                            e.x = (a.x + b.x) / 2.0;
+                            e.y = (a.y + b.y) / 2.0;
+                            e.distance = elapsed;
+                            e.rule_ref = "Law 12 — Pushing";
+                            events.push_back(e);
+                            cs->event_fired = true;
+                        }
+                    }
+                } else {
+                    // New contact
+                    ContactState ns;
+                    ns.key = key;
+                    ns.start_time = current.sim_time;
+                    ns.event_fired = false;
+                    contacts_.push_back(ns);
+                    contact_alive.push_back(true);
+                }
+            }
+        }
+
+        // Prune stale contacts (no longer in proximity)
+        std::vector<ContactState> alive;
+        for (size_t k = 0; k < contacts_.size(); k++) {
+            if (k < contact_alive.size() && contact_alive[k]) {
+                alive.push_back(contacts_[k]);
+            }
+        }
+        contacts_ = std::move(alive);
+
+        return events;
+    }
+
+    void reset() override {
+        contacts_.clear();
+    }
+    std::string name() const override { return "Pushing"; }
+    std::string ruleRef() const override { return "Law 12, Pushing"; }
+};
+
+// ============================================================
 // Event description helper
 // ============================================================
 
@@ -738,6 +1121,13 @@ std::string GameEvent::description() const {
             return "No progress in game";
         case GameEventType::TOO_MANY_ROBOTS:
             return "Too many robots for team " + std::to_string(by_team);
+        case GameEventType::AIMLESS_KICK:
+            return "Aimless kick by team " + std::to_string(by_team) + " robot " + std::to_string(by_bot);
+        case GameEventType::KEEPER_HELD_BALL:
+            return "Keeper held ball too long (" + std::to_string(distance) + "s) by team " + std::to_string(by_team);
+        case GameEventType::BOT_PUSHED_BOT:
+            return "Robot pushing: team " + std::to_string(by_team) + " robot " + std::to_string(by_bot) +
+                   " pushed team " + std::to_string(victim_team) + " robot " + std::to_string(victim_bot);
         default:
             return "Event type " + std::to_string(static_cast<int>(type));
     }
@@ -783,6 +1173,9 @@ EventDetectorRegistry EventDetectorRegistry::createDefault(const grsim_core::Sim
     registry.addDetector(std::make_unique<BallPlacementDetector>());
     registry.addDetector(std::make_unique<NoProgressDetector>());
     registry.addDetector(std::make_unique<TooManyRobotsDetector>(config));
+    registry.addDetector(std::make_unique<AimlessKickDetector>(config));
+    registry.addDetector(std::make_unique<KeeperHeldBallDetector>(config));
+    registry.addDetector(std::make_unique<PushingDetector>(config));
     return registry;
 }
 
