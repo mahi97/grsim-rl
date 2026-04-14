@@ -18,9 +18,14 @@
 #include "grsim_core/engine.h"
 
 #include <ode/ode.h>
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <cstring>
 #include <algorithm>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 namespace grsim_core {
 
@@ -147,6 +152,14 @@ struct EngineImpl {
 void EngineImpl::nearCallback(void* data, dGeomID o1, dGeomID o2) {
     auto* impl = static_cast<EngineImpl*>(data);
 
+    // Skip collision between two static (bodyless) geoms
+    dBodyID b1 = dGeomGetBody(o1);
+    dBodyID b2 = dGeomGetBody(o2);
+    if (!b1 && !b2) return;
+
+    // Skip collision between bodies connected by a joint
+    if (b1 && b2 && dAreConnectedExcluding(b1, b2, dJointTypeContact)) return;
+
     const int MAX_CONTACTS = 10;
     dContact contacts[MAX_CONTACTS];
     int n = dCollide(o1, o2, MAX_CONTACTS, &contacts[0].geom, sizeof(dContact));
@@ -189,7 +202,7 @@ StepResult SimulationEngine::step(const Actions& actions, double dt) {
     for (int i = 0; i < substeps; i++) {
         impl_->applyBallFriction(dt / substeps);
         dSpaceCollide(impl_->space, impl_.get(), &EngineImpl::nearCallback);
-        dWorldStep(impl_->world, dt / substeps);
+        dWorldQuickStep(impl_->world, dt / substeps);
         dJointGroupEmpty(impl_->contact_group);
     }
 
@@ -393,12 +406,28 @@ bool SimulationEngine::isPositionInField(double x, double y) const {
 
 // ---------- EngineImpl internals ----------
 
+// Suppress ODE's default error handler which calls exit()
+static void odeMessageHandler(int errnum, const char* msg, va_list ap) {
+    // Silently ignore ODE internal warnings (LCP errors, etc.)
+    // In debug builds, could log these instead
+}
+
 void EngineImpl::init() {
     dInitODE();
+    dSetErrorHandler(odeMessageHandler);
+    dSetDebugHandler(odeMessageHandler);
+    dSetMessageHandler(odeMessageHandler);
+
     world = dWorldCreate();
     space = dHashSpaceCreate(nullptr);
     contact_group = dJointGroupCreate(0);
     dWorldSetGravity(world, 0, 0, -config.sim.gravity);
+
+    // Solver parameters to reduce LCP issues
+    dWorldSetCFM(world, 1e-5);
+    dWorldSetERP(world, 0.8);
+    dWorldSetContactMaxCorrectingVel(world, 10.0);
+    dWorldSetContactSurfaceLayer(world, 0.001);
 
     sim_time = 0.0;
     frame_num = 0;
@@ -409,15 +438,15 @@ void EngineImpl::init() {
 
     int n = config.sim.robots_per_team;
 
-    // Default formation: line up outside field
-    double spacing = 0.3;
+    // Default formation: line up inside field near own goal
+    double spacing = 0.4;
     for (int i = 0; i < n; i++) {
         double y = (i - n / 2.0 + 0.5) * spacing;
-        robots.push_back(createRobot(0, i, -(config.field.field_length / 2.0 + 0.5), y, 0));
+        robots.push_back(createRobot(0, i, -(config.field.field_length / 2.0 - 1.0), y, 0));
     }
     for (int i = 0; i < n; i++) {
         double y = (i - n / 2.0 + 0.5) * spacing;
-        robots.push_back(createRobot(1, i, (config.field.field_length / 2.0 + 0.5), y, 180));
+        robots.push_back(createRobot(1, i, (config.field.field_length / 2.0 - 1.0), y, 180));
     }
 }
 

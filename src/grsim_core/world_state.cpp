@@ -1,5 +1,6 @@
 #include "grsim_core/world_state.h"
 #include <stdexcept>
+#include <string>
 
 namespace grsim_core {
 

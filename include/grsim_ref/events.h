@@ -1,9 +1,11 @@
 #ifndef GRSIM_REF_EVENTS_H
 #define GRSIM_REF_EVENTS_H
 
+#include "grsim_core/config.h"
 #include "grsim_core/world_state.h"
 #include <string>
 #include <vector>
+#include <memory>
 #include <cstdint>
 
 namespace grsim_ref {
