@@ -9,3 +9,24 @@ Thumbs.db
 *.iml
 cmake-build-debug
 cmake-build-release
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+build/
+cmake-build-*/
+
+# OS
+.DS_Store
+Thumbs.db

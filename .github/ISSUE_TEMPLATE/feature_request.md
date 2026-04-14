@@ -1,20 +1,25 @@
 ---
-name: Feature request
-about: Suggest an idea for this project
-title: ''
-labels: feature request
+name: Feature Request
+about: Suggest a new feature or improvement
+title: "[Feature] "
+labels: enhancement
 assignees: ''
-
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+**Component**
+Which layer would this affect?
+- [ ] grsim_core
+- [ ] grsim_ref
+- [ ] grsim_scenarios
+- [ ] pygrsim
+- [ ] Upstream compatibility
+- [ ] Benchmarks / paper
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+**Describe the feature**
+A clear description of what you want.
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+**Motivation**
+Why is this feature needed?
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+**SSL rule reference**
+If applicable, link the rule section.

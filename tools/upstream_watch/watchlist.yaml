@@ -1,0 +1,80 @@
+# Upstream Repository Watchlist
+# Used by the upstream change watcher to detect and classify changes.
+
+repos:
+  - name: ssl-rules
+    url: https://github.com/RoboCup-SSL/ssl-rules
+    branch: master
+    priority: critical
+    impact_areas:
+      - rules
+      - event_semantics
+      - scenarios
+    watch_paths:
+      - "chapters/"
+      - "appendices/"
+
+  - name: ssl-game-controller
+    url: https://github.com/RoboCup-SSL/ssl-game-controller
+    branch: master
+    priority: critical
+    impact_areas:
+      - protocols
+      - event_semantics
+      - compatibility
+    watch_paths:
+      - "proto/"
+      - "internal/app/engine/"
+
+  - name: ssl-simulation-protocol
+    url: https://github.com/RoboCup-SSL/ssl-simulation-protocol
+    branch: master
+    priority: critical
+    impact_areas:
+      - protocols
+      - compatibility
+    watch_paths:
+      - "proto/"
+
+  - name: ssl-vision
+    url: https://github.com/RoboCup-SSL/ssl-vision
+    branch: master
+    priority: high
+    impact_areas:
+      - protocols
+      - compatibility
+    watch_paths:
+      - "src/shared/proto/"
+
+  - name: grSim
+    url: https://github.com/RoboCup-SSL/grSim
+    branch: master
+    priority: high
+    impact_areas:
+      - compatibility
+      - protocols
+    watch_paths:
+      - "src/"
+      - "include/"
+      - "src/proto/"
+
+  - name: technical-challenge-rules
+    url: https://github.com/RoboCup-SSL/technical-challenge-rules
+    branch: master
+    priority: medium
+    impact_areas:
+      - scenarios
+    watch_paths:
+      - "."
+
+  - name: ssl-autoref-tests
+    url: https://github.com/RoboCup-SSL/ssl-autoref-tests
+    branch: master
+    priority: medium
+    impact_areas:
+      - event_semantics
+      - scenarios
+    watch_paths:
+      - "."
+
+poll_interval_hours: 168  # Weekly for critical, can be overridden per-repo

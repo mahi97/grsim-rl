@@ -1,0 +1,42 @@
+name: Upstream Change Watch
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly on Monday at 6:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Check upstream changes
+        run: |
+          cd tools/upstream_watch
+          python watch.py --check --report \
+            --state-file upstream_state.json \
+            --output ../../.artifacts/upstream_report.md
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-report
+          path: .artifacts/upstream_report.md
+
+      - name: Commit state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tools/upstream_watch/upstream_state.json
+          git diff --cached --quiet || git commit -m "chore: update upstream watch state"
+          git push || true

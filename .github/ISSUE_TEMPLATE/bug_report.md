@@ -1,32 +1,36 @@
 ---
-name: Bug report
-about: Create a report to help us improve
-title: ''
+name: Bug Report
+about: Report a bug in grsim-rl
+title: "[Bug] "
 labels: bug
 assignees: ''
-
 ---
 
+**Component**
+Which layer is affected?
+- [ ] grsim_core (physics engine)
+- [ ] grsim_ref (event detection / rewards)
+- [ ] grsim_scenarios (scenarios / skills / coach)
+- [ ] pygrsim (Python environments)
+- [ ] Original grSim (real-time mode)
+- [ ] Build system / CI
+- [ ] Documentation
+
 **Describe the bug**
-A clear and concise description of what the bug is.
+A clear description of what the bug is.
 
 **To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+Steps or code to reproduce:
+```python
+import pygrsim
+# ...
+```
 
 **Expected behavior**
-A clear and concise description of what you expected to happen.
+What you expected to happen.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
-
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Version [e.g. 22]
-
-
-**Additional context**
-Add any other context about the problem here.
+**Environment**
+- OS:
+- Python version:
+- grsim-rl version/commit:
+- Gymnasium version:
