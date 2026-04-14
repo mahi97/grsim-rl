@@ -1,0 +1,64 @@
+site_name: grsim-rl
+site_description: RL training platform for RoboCup SSL built on grSim
+site_url: https://grsim-rl.readthedocs.io/
+repo_url: https://github.com/grsim-rl/grsim-rl
+repo_name: grsim-rl/grsim-rl
+
+docs_dir: site
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: green
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: green
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Quick Start: quickstart.md
+  - API Reference:
+      - Environments: api/environments.md
+      - Scenarios: api/scenarios.md
+      - Events: api/events.md
+  - Contributing: contributing.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/grsim-rl/grsim-rl
