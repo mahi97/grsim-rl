@@ -29,13 +29,16 @@ ExternalProject_Add(protobuf_external
   SOURCE_SUBDIR     cmake
   CMAKE_ARGS
                     -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-                    -DCMAKE_TOOLCHAIN_FILE:PATH=${CMAKE_TOOLCHAIN_FILE}
                     -DCMAKE_C_COMPILER:PATH=${CMAKE_C_COMPILER}
                     -DCMAKE_CXX_COMPILER:PATH=${CMAKE_CXX_COMPILER}
                     -DCMAKE_MAKE_PROGRAM:PATH=${CMAKE_MAKE_PROGRAM}
+                    -DCMAKE_CXX_STANDARD=17
                     -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+                    -DCMAKE_POLICY_DEFAULT_CMP0091=NEW
+                    -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
                     # the tests fail to build :-(
                     -Dprotobuf_BUILD_TESTS:BOOL=OFF
+                    -Dprotobuf_MSVC_STATIC_RUNTIME:BOOL=OFF
   STEP_TARGETS install
 )
 

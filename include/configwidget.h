@@ -31,9 +31,9 @@ Copyright (C) 2011, Parsian Robotic Center (eew.aut.ac.ir/~parsian/grsim)
 #include <stdio.h>
 #include <memory>
 
-#include <vartypes/VarTreeModel.h>
-#include <vartypes/VarItem.h>
-#include <vartypes/VarTreeView.h>
+#include <vartypes/gui/VarTreeModel.h>
+#include <vartypes/gui/VarItem.h>
+#include <vartypes/gui/VarTreeView.h>
 #include <vartypes/VarXML.h>
 #include <vartypes/VarList.h>
 #include <vartypes/VarDouble.h>

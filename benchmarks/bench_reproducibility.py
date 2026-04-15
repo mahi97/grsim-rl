@@ -84,7 +84,7 @@ def main():
     print()
 
     # Determinism check
-    print("Determinism Verification (same seed → same trajectory)")
+    print("Determinism Verification (same seed -> same trajectory)")
     print(f"{'Scenario':<28} {'Result':>10}")
     print("-" * 40)
 
@@ -97,7 +97,7 @@ def main():
 
     # Cross-seed variance
     print("Cross-Seed Variance (random agent, 10 seeds)")
-    print(f"{'Scenario':<28} {'Len μ':>7} {'Len σ':>7} {'Rew μ':>9} {'Rew σ':>9}")
+    print(f"{'Scenario':<28} {'Len m':>7} {'Len s':>7} {'Rew m':>9} {'Rew s':>9}")
     print("-" * 62)
 
     for name in ["empty_field_shot", "1v1_dribble", "3v3_possession", "mini_game_full"]:

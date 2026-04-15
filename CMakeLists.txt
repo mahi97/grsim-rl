@@ -118,56 +118,52 @@ find_package(VarTypes)
 
 if(NOT VARTYPES_FOUND)
   include(ExternalProject)
-  
-  # Force /MD runtime on MSVC to match vcpkg protobuf
-  if(MSVC)
-    set(VARTYPES_CMAKE_ARGS
-      "-DVARTYPES_BUILD_STATIC=ON"
-      "-DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>"
-      "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
-      "-DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}"
-      "-DQt5_DIR=${Qt5_DIR}"
-      "-DCMAKE_C_FLAGS_RELEASE=/MD /O2 /Ob2 /DNDEBUG"
-      "-DCMAKE_CXX_FLAGS_RELEASE=/MD /EHsc /O2 /Ob2 /DNDEBUG"
-      "-DCMAKE_C_FLAGS_DEBUG=/MDd /Zi /Ob0 /Od /RTC1"
-      "-DCMAKE_CXX_FLAGS_DEBUG=/MDd /EHsc /Zi /Ob0 /Od /RTC1"
-    )
-  else()
-    set(VARTYPES_CMAKE_ARGS
-      "-DVARTYPES_BUILD_STATIC=ON"
-      "-DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>"
-      "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
-      "-DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}"
-    )
-  endif()
+
+  set(VARTYPES_CMAKE_ARGS
+    "-DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>"
+    "-DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}"
+    "-DBUILD_GUI=ON"
+    "-DBUILD_EXAMPLES=OFF"
+    "-DBUILD_TESTS=OFF"
+    "-DCMAKE_POLICY_DEFAULT_CMP0091=NEW"
+    "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL"
+  )
   if(NOT "${CMAKE_TOOLCHAIN_FILE}" STREQUAL "")
     list(APPEND VARTYPES_CMAKE_ARGS "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
   endif()
 
   ExternalProject_Add(vartypes_external
-    GIT_REPOSITORY    https://github.com/jpfeltracco/vartypes
-    GIT_TAG           origin/jpfeltracco/build_static
+    GIT_REPOSITORY    https://github.com/mahi97/vartypes
+    GIT_TAG           origin/main
     CMAKE_ARGS        ${VARTYPES_CMAKE_ARGS}
-                      "-DCMAKE_POLICY_DEFAULT_CMP0091=NEW"
-                      "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL"
     STEP_TARGETS install
   )
-  set(VARTYPES_LIB_SUBPATH "${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}vartypes${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
-  # the byproducts are available after the install step
+  # mahi97/vartypes builds shared libraries: vartypes-core and vartypes-widgets
+  if(WIN32)
+    set(VARTYPES_CORE_LIB_SUBPATH "${CMAKE_INSTALL_LIBDIR}/vartypes-core.lib")
+    set(VARTYPES_WIDGETS_LIB_SUBPATH "${CMAKE_INSTALL_LIBDIR}/vartypes-widgets.lib")
+  else()
+    set(VARTYPES_CORE_LIB_SUBPATH "${CMAKE_INSTALL_LIBDIR}/libvartypes-core${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(VARTYPES_WIDGETS_LIB_SUBPATH "${CMAKE_INSTALL_LIBDIR}/libvartypes-widgets${CMAKE_SHARED_LIBRARY_SUFFIX}")
+  endif()
+
   ExternalProject_Add_Step(vartypes_external out
     DEPENDEES install
     BYPRODUCTS
-        "<INSTALL_DIR>/${VARTYPES_LIB_SUBPATH}"
+        "<INSTALL_DIR>/${VARTYPES_CORE_LIB_SUBPATH}"
+        "<INSTALL_DIR>/${VARTYPES_WIDGETS_LIB_SUBPATH}"
   )
 
   add_dependencies(${app} vartypes_external)
 
   ExternalProject_Get_Property(vartypes_external install_dir)
-  add_dependencies(${app} vartypes_external)
 
-  set(VARTYPES_INCLUDE_DIRS "${install_dir}/include")
-  set(VARTYPES_LIBRARIES "${install_dir}/${VARTYPES_LIB_SUBPATH}")
+  set(VARTYPES_INCLUDE_DIRS "${install_dir}/include" "${install_dir}/include/vartypes")
+  set(VARTYPES_LIBRARIES
+    "${install_dir}/${VARTYPES_CORE_LIB_SUBPATH}"
+    "${install_dir}/${VARTYPES_WIDGETS_LIB_SUBPATH}"
+  )
 endif()
 
 target_include_directories(${app} PRIVATE ${VARTYPES_INCLUDE_DIRS})
@@ -278,7 +274,7 @@ target_link_libraries(${app} ${libs})
 
 # Work around CRT mismatch between VarTypes (/MT) and vcpkg protobuf (/MD)
 if(MSVC)
-  set_property(TARGET ${app} APPEND_STRING PROPERTY LINK_FLAGS " /NODEFAULTLIB:LIBCMT")
+  set_property(TARGET ${app} APPEND_STRING PROPERTY LINK_FLAGS " /NODEFAULTLIB:LIBCMT /NODEFAULTLIB:libcpmt")
 endif()
 
 if(APPLE AND CMAKE_MACOSX_BUNDLE)
