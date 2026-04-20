@@ -16,6 +16,9 @@ ExternalProject_Add(ode_external
                       -DBUILD_SHARED_LIBS=OFF
                       # if this is OFF grSim just dies instantly and INSTALL.md says it should be ON
                       -DODE_DOUBLE_PRECISION=ON
+                      # disable demos and tests to avoid C++11 narrowing errors on newer compilers
+                      -DODE_WITH_DEMOS=OFF
+                      -DODE_WITH_TESTS=OFF
                       -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
   STEP_TARGETS install
 )

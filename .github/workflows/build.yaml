@@ -2,7 +2,7 @@ name: Build
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
 jobs:
   build-linux:
@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, ubuntu-22.04, ubuntu-24.04 ]
+        os: [ ubuntu-22.04, ubuntu-24.04 ]
     steps:
       - uses: actions/checkout@v6
       - name: "Update dependencies"
@@ -27,20 +27,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ macos-13, macos-14 ]
+        os: [ macos-14, macos-15 ]
     steps:
       - uses: actions/checkout@v6
       - name: "Install dependencies"
-        run: brew tap robotology/formulae && brew install cmake pkg-config qt@5
+        run: brew tap robotology/formulae && brew install cmake pkg-config qt@5 ode
       - name: "Build"
         run: |
-          # For macOS 13
-          export PATH="/usr/local/opt/qt@5/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/qt@5/lib"
-          export CPPFLAGS="-I/usr/local/opt/qt@5/include"
-          export PKG_CONFIG_PATH="/usr/local/opt/qt@5/lib/pkgconfig"
-          
-          # For macOS 14
+          # For macOS 14+  (Apple Silicon, Homebrew in /opt/homebrew)
           export PATH="/opt/homebrew/opt/qt@5/bin:$PATH"
           export LDFLAGS="-L/opt/homebrew/opt/qt@5/lib"
           export CPPFLAGS="-I/opt/homebrew/opt/qt@5/include"
@@ -48,28 +42,25 @@ jobs:
           
           make
 
-# Windows build does not work currently, see https://github.com/RoboCup-SSL/grSim/issues/183
-#  build-windows:
-#    runs-on: windows-latest
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Install dependencies # saves / restores cache to avoid rebuilding dependencies
-#        uses: lukka/run-vcpkg@v11
-#        with:
-#          vcpkgGitCommitId: 8eb57355a4ffb410a2e94c07b4dca2dffbee8e50
-#          vcpkgDirectory: c:/vcpkg  # folder must reside in c:\ otherwise qt wont install due to long path errors
-#
-#      - name: Run CMake and run vcpkg to build packages
-#        uses: lukka/run-cmake@v10
-#        with:
-#          # this preset is needed to actually install the vcpkg dependencies
-#          configurePreset: "ninja-multi-vcpkg"
-#          configPresetAdditionalArgs: "[-DVCPKG_TARGET_TRIPLET=x64-windows]"
-#          buildPreset: "ninja-multi-vcpkg"
-#          buildPresetAdditionalArgs: "['--config Release']"
-#    env:
-#      # [OPTIONAL] Define the vcpkg's triplet you want to enforce, otherwise the default one
-#      # for the hosting system will be automatically choosen (x64 is the default on all
-#      # platforms, e.g. `x64-osx`).
-#      VCPKG_DEFAULT_TRIPLET: "x64-windows"
+  build-windows:
+    runs-on: windows-latest
+    continue-on-error: true  # Windows support is experimental, see #183
+    permissions:
+      contents: read
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-windows
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set VCPKG_ROOT
+        run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+
+      - name: Configure
+        run: cmake --preset ninja-multi-vcpkg
+
+      - name: Build
+        run: cmake --build --preset ninja-multi-vcpkg --config Release

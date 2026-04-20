@@ -48,8 +48,11 @@ RUN mkdir -p /build/full && cd /build/full && \
         -DCMAKE_BUILD_TYPE=Release && \
     make -j$(nproc)
 
-# Install Python package
-RUN cd /src/grsim-rl/python && pip3 install -e ".[all]"
+# Upgrade pip/setuptools for PEP 660 editable install support
+RUN pip3 install --upgrade pip setuptools
+
+# Install Python package (including dev tools for tests)
+RUN cd /src/grsim-rl/python && pip3 install -e ".[all,dev]"
 
 # Copy native module to Python path
 RUN cp /build/rl/src/pygrsim_native/pygrsim_native*.so \
